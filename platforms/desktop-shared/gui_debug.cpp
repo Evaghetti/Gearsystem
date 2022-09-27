@@ -36,6 +36,7 @@ struct DebugSymbol
     int bank;
     u16 address;
     std::string text;
+    char type;
 };
 
 struct DisassmeblerLine
@@ -1508,7 +1509,19 @@ static void add_symbol(const char* line)
 
     if (space != std::string::npos)
     {
-        s.text = str.substr(space + 1 , std::string::npos);
+        std::string symbolName = str.substr(space + 1 , std::string::npos);
+        if (symbolName[1] == ' ') {
+            s.type = symbolName[0];
+            s.text = symbolName.substr(2, std::string::npos);
+            s.address = (u16)std::stoul(str.substr(0, space), 0, 16);
+            s.bank = 0;
+
+            symbols.push_back(s);
+            return;
+        }
+        
+        s.type = 't';
+        s.text = symbolName;
         str = str.substr(0, space);
 
         std::size_t separator = str.find(":");
