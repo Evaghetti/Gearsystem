@@ -31,6 +31,8 @@
 #define GUI_DEBUG_IMPORT
 #include "gui_debug.h"
 
+#include <iomanip>
+
 struct DebugSymbol
 {
     int bank;
@@ -308,6 +310,34 @@ static void debug_window_memory(void)
     ImGui::End();
 }
 
+static std::string convert_u16_to_string(u16 input, std::string baseInstruction) {
+    std::size_t startHex = baseInstruction.find("$");
+    std::size_t width = input & 0xFF ? 4 : 2;
+
+    if (startHex != std::string::npos) {
+        startHex++;
+        std::size_t endHex = baseInstruction.find_first_not_of("0123456789ABCDEF", startHex);
+        if (endHex == std::string::npos)
+            endHex = baseInstruction.length();
+        width = endHex - startHex;
+    }
+
+    std::stringstream ss;
+    ss << std::hex
+       << std::setfill('0') << std::setw(width)  
+       << std::uppercase
+       << input;
+    return ss.str();
+}
+
+static char get_correct_type(std::string instruction) {
+    if (instruction.find("CALL") != std::string::npos || instruction.find("JP") != std::string::npos)
+        return 't';
+
+    std::size_t beginHex = instruction.find("$");
+    return instruction[beginHex - 1] == '(' ? 'b' : 'd';
+}
+
 static void debug_window_disassembler(void)
 {
     ImGui::SetNextWindowPos(ImVec2(160, 30), ImGuiCond_FirstUseEver);
@@ -579,12 +609,30 @@ static void debug_window_disassembler(void)
             {
                 for (long unsigned int s = 0; s < symbols.size(); s++)
                 {
-                    if ((symbols[s].bank == bank) && (symbols[s].address == offset) && show_symbols)
+                    if (symbols[s].type == 't') 
                     {
-                        vec[dis_size].is_symbol = true;
-                        vec[dis_size].symbol = symbols[s].text;
-                        dis_size ++;
+                        if ((symbols[s].bank == bank) && (symbols[s].address == offset) && show_symbols)
+                        {
+                            vec[dis_size].is_symbol = true;
+                            vec[dis_size].symbol = symbols[s].text;
+                            dis_size ++;
+                        }
                     }
+                        
+                    std::string instruction = map[offset]->name;
+                    std::string correspondent_symbol_address = convert_u16_to_string(symbols[s].address, instruction);
+                    std::string::size_type symbol_position = instruction.find(correspondent_symbol_address);
+                    
+                    if (symbol_position == std::string::npos)
+                        continue;
+
+                    if (symbols[s].type != get_correct_type(instruction))
+                        continue;
+                    
+                    instruction.reserve(instruction.length() + symbols[s].text.length());
+                    instruction.replace(symbol_position, symbols[s].text.length(), symbols[s].text);
+
+                    strncpy(map[offset]->name, instruction.c_str(), sizeof(map[offset]->name));
                 }
 
                 vec[dis_size].is_symbol = false;
@@ -1511,7 +1559,7 @@ static void add_symbol(const char* line)
     {
         std::string symbolName = str.substr(space + 1 , std::string::npos);
         if (symbolName[1] == ' ') {
-            s.type = symbolName[0];
+            s.type = std::tolower(symbolName[0]);
             s.text = symbolName.substr(2, std::string::npos);
             s.address = (u16)std::stoul(str.substr(0, space), 0, 16);
             s.bank = 0;
