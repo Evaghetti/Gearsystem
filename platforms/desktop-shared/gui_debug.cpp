@@ -334,6 +334,9 @@ static char get_correct_type(std::string instruction) {
     if (instruction.find("CALL") != std::string::npos || instruction.find("JP") != std::string::npos)
         return 't';
 
+    if (instruction.find("LD IX") != std::string::npos || instruction.find("LD IY") != std::string::npos )
+        return 'b';
+
     std::size_t beginHex = instruction.find("$");
     return instruction[beginHex - 1] == '(' ? 'b' : 'd';
 }
