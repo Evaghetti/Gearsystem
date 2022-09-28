@@ -622,15 +622,20 @@ static void debug_window_disassembler(void)
                     std::string instruction = map[offset]->name;
                     std::string correspondent_symbol_address = convert_u16_to_string(symbols[s].address, instruction);
                     std::string::size_type symbol_position = instruction.find(correspondent_symbol_address);
+                    std::string post_content = "";
                     
                     if (symbol_position == std::string::npos)
                         continue;
 
+                    if (symbol_position + correspondent_symbol_address.length() < instruction.length())
+                        post_content = instruction.substr(symbol_position + correspondent_symbol_address.length());
+
                     if (symbols[s].type != get_correct_type(instruction))
                         continue;
                     
+                    std::string result = symbols[s].text + post_content;
                     instruction.reserve(instruction.length() + symbols[s].text.length());
-                    instruction.replace(symbol_position, symbols[s].text.length(), symbols[s].text);
+                    instruction.replace(symbol_position, result.length(), result);
 
                     strncpy(map[offset]->name, instruction.c_str(), sizeof(map[offset]->name));
                 }
