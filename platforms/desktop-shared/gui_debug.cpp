@@ -64,7 +64,7 @@ static char brk_address_cpu[8] = "";
 static char brk_address_mem[10] = "";
 static bool brk_new_mem_read = true;
 static bool brk_new_mem_write = true;
-static char goto_address[5] = "";
+static char goto_address[32] = "";
 static bool goto_address_requested = false;
 static u16 goto_address_target = 0;
 static bool goto_back_requested = false;
@@ -83,6 +83,7 @@ static void add_symbol(const char* line);
 static void add_breakpoint_cpu(void);
 static void add_breakpoint_mem(void);
 static void request_goto_address(u16 addr);
+static bool request_goto_label(std::string label);
 static ImVec4 color_444_to_float(u16 color);
 static ImVec4 color_222_to_float(u8 color);
 
@@ -379,13 +380,12 @@ static void debug_window_disassembler(void)
     ImGui::Checkbox("Follow PC", &follow_pc); ImGui::SameLine();
     ImGui::Checkbox("Show Memory", &show_mem);  ImGui::SameLine();
     ImGui::Checkbox("Show Symbols", &show_symbols);
-
     ImGui::Separator();
 
-    ImGui::Text("Go To Address: ");
+    ImGui::Text("Go To Address or Label: ");
     ImGui::SameLine();
-    ImGui::PushItemWidth(45);
-    if (ImGui::InputTextWithHint("##goto_address", "XXXX", goto_address, IM_ARRAYSIZE(goto_address), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue))
+    ImGui::PushItemWidth(120);
+    if (ImGui::InputTextWithHint("##goto_address", "LabelName/XXXX", goto_address, IM_ARRAYSIZE(goto_address), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue))
     {
         try
         {
@@ -394,6 +394,7 @@ static void debug_window_disassembler(void)
         }
         catch(const std::invalid_argument&)
         {
+            follow_pc = !request_goto_label(goto_address);
         }
         goto_address[0] = 0;
     }
@@ -408,6 +409,7 @@ static void debug_window_disassembler(void)
         }
         catch(const std::invalid_argument&)
         {
+            follow_pc = !request_goto_label(goto_address);
         }
         goto_address[0] = 0;
     }
@@ -1798,4 +1800,15 @@ static void request_goto_address(u16 address)
 {
     goto_address_requested = true;
     goto_address_target = address;
+}
+
+static bool request_goto_label(std::string label) {
+    for (const DebugSymbol& symbol : symbols) {
+        if (symbol.type == 't' && symbol.text == label) {
+            request_goto_address(symbol.address);
+            return true;
+        }
+    }
+
+    return false;
 }
